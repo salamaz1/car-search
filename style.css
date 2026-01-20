@@ -1,0 +1,184 @@
+/* عام */
+body{
+  font-family: Segoe UI, Tahoma;
+  margin: 0;
+  padding: 15px;
+  direction: rtl;
+  background: #eef1f6; /* خلفية عامة مريحة */
+}
+
+h2{
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+/* الشعار */
+.logo-container{
+  text-align: center;
+  margin: 15px 0 25px 0;
+}
+.logo-container img{
+  width: 160px;
+  height: 160px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 4px solid #4f46e5;
+}
+
+/* البحث */
+#search{
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  margin-bottom: 15px;
+  font-size: 16px;
+  text-align: center;
+}
+
+/* أزرار الأنواع */
+.brand-filters{
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 15px;
+}
+
+.brand-btn{
+  padding: 8px 18px;
+  border-radius: 20px;
+  border: none;
+  cursor: pointer;
+  background: #e0e7ff;
+  font-weight: bold;
+}
+
+.brand-btn.active{
+  background: #4f46e5;
+  color: #fff;
+}
+
+/* العدادات */
+.counters{
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.counter{
+  background: #ffffff;
+  padding: 10px 20px;
+  border-radius: 14px;
+  font-weight: bold;
+  box-shadow: 0 3px 8px rgba(0,0,0,.1);
+  text-align: center;
+}
+
+.counter.sold{ color: #842029; }
+.counter.available{ color: #0f5132; }
+
+/* البطاقات */
+.cards{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 18px;
+}
+
+.card{
+  background: #fdfefe; /* لون مريح جدًا */
+  border-radius: 18px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.12);
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform .2s ease, box-shadow .2s ease;
+  text-align: center; /* 🔹 كل النصوص في المنتصف */
+}
+
+.card:hover{
+  transform: translateY(-4px);
+  box-shadow: 0 10px 26px rgba(0,0,0,.18);
+}
+
+/* رأس البطاقة */
+.card-header{
+  padding: 18px;
+  background: linear-gradient(135deg, #5f6cff, #4f46e5);
+  color: #fff;
+  text-align: center;
+}
+
+.card-header h3{
+  margin: 0;
+  font-size: 19px;
+}
+
+.vin{
+  font-size: 13px;
+  opacity: .95;
+  margin-top: 8px;
+}
+
+/* حالة السيارة */
+.status-badge{
+  display: inline-block;
+  margin-top: 10px;
+  padding: 6px 16px;
+  border-radius: 25px;
+  font-size: 13px;
+  font-weight: bold;
+  background: rgba(255,255,255,.85);
+  color: #333;
+}
+
+/* التكلفة */
+.card-cost{
+  padding: 14px;
+  font-weight: bold;
+  font-size: 17px;
+  color: #0f5132;
+  background: #e6f4ea; /* أخضر هادئ */
+  text-align: center;
+}
+
+/* التفاصيل */
+.details{
+  display: none;
+  padding: 14px;
+  border-top: 1px solid #e0e0e0;
+  background: #ffffff;
+}
+
+.card.open .details{
+  display: block;
+}
+
+.detail-row{
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px dashed #ddd;
+  font-size: 14px;
+}
+
+.detail-row:last-child{
+  border-bottom: none;
+}
+
+.label{
+  color: #555;
+  font-weight: 600;
+}
+
+.value{
+  color: #111;
+}
+
+/* رسائل */
+.loading{
+  text-align: center;
+  color: #666;
+  margin-top: 40px;
+  font-size: 16px;
+}

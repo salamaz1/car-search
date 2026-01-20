@@ -5,97 +5,32 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>استعلام السيارات</title>
 
-<style>
-body{
-  font-family:Segoe UI,Tahoma;
-  margin:0;
-  padding:15px;
-  direction:rtl;
-  background:#f2f4f8
-}
-h2{
-  text-align:center;
-  margin-bottom:15px
-}
-#search{
-  width:100%;
-  padding:12px;
-  border-radius:10px;
-  border:1px solid #ccc;
-  margin-bottom:15px;
-  font-size:16px
-}
-.cards{
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
-  gap:15px
-}
-.card{
-  background:#fff;
-  border-radius:12px;
-  box-shadow:0 4px 12px rgba(0,0,0,.1);
-  cursor:pointer;
-  overflow:hidden
-}
-.card-header{
-  padding:15px;
-  background:#4f46e5;
-  color:#fff
-}
-.card-header h3{
-  margin:0;
-  font-size:18px
-}
-.card-header .vin{
-  font-size:13px;
-  opacity:.9;
-  margin-top:5px
-}
-.card-cost{
-  padding:12px;
-  font-weight:bold;
-  color:#333;
-  background:#eef2ff
-}
-.details{
-  display:none;
-  padding:12px;
-  border-top:1px solid #eee
-}
-.card.open .details{
-  display:block
-}
-.detail-row{
-  display:flex;
-  justify-content:space-between;
-  padding:5px 0;
-  border-bottom:1px dashed #ddd;
-  font-size:14px
-}
-.detail-row:last-child{
-  border-bottom:none
-}
-.label{
-  color:#555;
-  font-weight:600
-}
-.value{
-  color:#111;
-  text-align:left
-}
-.loading{
-  text-align:center;
-  color:#666;
-  margin-top:40px
-}
-</style>
+<link rel="stylesheet" href="style.css">
+
+<!-- PapaParse -->
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 
 <body>
 
+<!-- الشعار -->
+<div class="logo-container">
+  <img src="assets/logo.jpg" alt="شعار الصدارة">
+</div>
+
 <h2>🔍 استعلام السيارات</h2>
 
-<input id="search" placeholder="بحث عام (نوع، موديل، رقم هيكل، تكلفة...)">
+<input id="search" placeholder="بحث (نوع، موديل، رقم هيكل، تكلفة...)">
+
+<!-- أزرار أنواع السيارات -->
+<div id="brand-filters" class="brand-filters"></div>
+
+<!-- العدادات -->
+<div class="counters">
+  <div class="counter total">الإجمالي: <span id="count-total">0</span></div>
+  <div class="counter sold">المباعة: <span id="count-sold">0</span></div>
+  <div class="counter available">غير المباعة: <span id="count-available">0</span></div>
+</div>
 
 <div id="cards" class="cards">
   <div class="loading">جاري تحميل البيانات...</div>
@@ -106,66 +41,148 @@ const CSV_URL =
 "https://docs.google.com/spreadsheets/d/e/2PACX-1vR2sKJaXG_woDQOQge29zkhGyyWil3njTr8dmL9CqXdqV-e3Bi9JfTfqcLpdGMVPA/pub?output=csv";
 
 let allData = [];
+let currentBrand = "الكل";
+
 const cardsDiv = document.getElementById("cards");
 const searchInput = document.getElementById("search");
+const brandFiltersDiv = document.getElementById("brand-filters");
 
-fetch(CSV_URL)
-.then(res => res.text())
-.then(csv => {
-  const rows = csv.split("\n").map(r => r.split(","));
-  const headers = rows.shift();
+/* تنسيق الدينار الليبي */
+function formatLYD(value) {
+  if (value === null || value === undefined || value === "") return "-";
 
-  allData = rows.map(r => {
-    let obj = {};
-    headers.forEach((h,i)=> obj[h.trim()] = r[i] || "");
-    return obj;
-  });
+  let text = value.toString().split(".")[0].split("٫")[0];
+  const clean = text.replace(/[^\d]/g, "");
+  if (clean === "") return "-";
 
-  render(allData);
+  const number = parseInt(clean, 10);
+  if (number <= 0) return "-";
+
+  return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + " د.ل";
+}
+
+/* قراءة CSV */
+Papa.parse(CSV_URL, {
+  download: true,
+  header: true,
+  skipEmptyLines: true,
+  complete: function(results) {
+    allData = results.data;
+    buildBrandFilters();
+    applyFilters();
+  }
 });
 
+/* إنشاء أزرار الأنواع */
+function buildBrandFilters(){
+  const brands = [...new Set(
+    allData
+      .map(c => (c["النوع"] || "").trim())
+      .filter(b => b !== "")
+  )];
+
+  brandFiltersDiv.innerHTML =
+    `<button class="brand-btn active" data-brand="الكل">الكل</button>` +
+    brands.map(b =>
+      `<button class="brand-btn" data-brand="${b}">${b}</button>`
+    ).join("");
+
+  document.querySelectorAll(".brand-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".brand-btn")
+        .forEach(b => b.classList.remove("active"));
+
+      btn.classList.add("active");
+      currentBrand = btn.dataset.brand;
+      applyFilters();
+    });
+  });
+}
+
+/* البحث + فلترة النوع (مُصلحة لهوندا) */
+function applyFilters(){
+  const searchText = searchInput.value.toLowerCase();
+  const selectedBrand = currentBrand.trim().toLowerCase();
+
+  const filtered = allData.filter(car => {
+    const matchesSearch =
+      Object.values(car).join(" ").toLowerCase().includes(searchText);
+
+    const carBrand = (car["النوع"] || "").trim().toLowerCase();
+
+    const matchesBrand =
+      selectedBrand === "الكل" || carBrand === selectedBrand;
+
+    return matchesSearch && matchesBrand;
+  });
+
+  updateCounters(filtered);
+  render(filtered);
+}
+
+/* العدادات */
+function updateCounters(data){
+  const total = data.length;
+  const sold = data.filter(c =>
+    (c["الحضيرة"] || "").toLowerCase().includes("بيع")
+  ).length;
+
+  document.getElementById("count-total").textContent = total;
+  document.getElementById("count-sold").textContent = sold;
+  document.getElementById("count-available").textContent = total - sold;
+}
+
+/* البحث */
+searchInput.addEventListener("keyup", applyFilters);
+
+/* عرض البطاقات */
 function render(data){
-  cardsDiv.innerHTML="";
-  if(data.length===0){
-    cardsDiv.innerHTML="<div class='loading'>لا توجد نتائج</div>";
+  cardsDiv.innerHTML = "";
+
+  if (data.length === 0) {
+    cardsDiv.innerHTML = "<div class='loading'>لا توجد نتائج</div>";
     return;
   }
 
-  data.forEach(car=>{
-    const card=document.createElement("div");
-    card.className="card";
+  data.forEach(car => {
+    const status = (car["الحضيرة"] || "غير محدد").trim();
 
-    card.innerHTML=`
+    const card = document.createElement("div");
+    card.className = "card";
+
+    card.innerHTML = `
       <div class="card-header">
         <h3>${car["النوع"] || ""} - ${car["الموديل"] || ""}</h3>
         <div class="vin">رقم الهيكل: ${car["رقم الهيكل"] || "-"}</div>
+        <span class="status-badge status-${status}">${status}</span>
       </div>
 
       <div class="card-cost">
-        التكلفة النهائية: ${car["التكلفة النهائية"] || "-"} د.ل
+        التكلفة النهائية: ${formatLYD(car["التكلفة النهائية"])}
       </div>
 
       <div class="details">
-        ${Object.keys(car).map(k=>`
+        ${Object.keys(car).map(k => `
           <div class="detail-row">
             <span class="label">${k}</span>
-            <span class="value">${car[k]}</span>
+            <span class="value">
+              ${
+                k.includes("سعر") || k.includes("تكلفة") ||
+                k.includes("مصاريف") || k.includes("عمولة") ||
+                k.includes("ربح")
+                ? formatLYD(car[k])
+                : car[k]
+              }
+            </span>
           </div>
         `).join("")}
       </div>
     `;
 
-    card.onclick=()=>card.classList.toggle("open");
+    card.onclick = () => card.classList.toggle("open");
     cardsDiv.appendChild(card);
   });
 }
-
-searchInput.onkeyup=()=>{
-  const v=searchInput.value.toLowerCase();
-  render(allData.filter(c=>
-    Object.values(c).join(" ").toLowerCase().includes(v)
-  ));
-};
 </script>
 
 </body>
