@@ -6,8 +6,6 @@
 <title>استعلام السيارات</title>
 
 <link rel="stylesheet" href="style.css">
-
-<!-- PapaParse -->
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 
@@ -20,17 +18,22 @@
 
 <h2>🔍 استعلام السيارات</h2>
 
-<input id="search" placeholder="بحث (نوع، موديل، رقم هيكل، تكلفة...)">
-
-<!-- أزرار أنواع السيارات -->
-<div id="brand-filters" class="brand-filters"></div>
-
-<!-- العدادات -->
-<div class="counters">
-  <div class="counter total">الإجمالي: <span id="count-total">0</span></div>
-  <div class="counter sold">المباعة: <span id="count-sold">0</span></div>
-  <div class="counter available">غير المباعة: <span id="count-available">0</span></div>
+<!-- البحث -->
+<div class="search-wrapper">
+  <input id="search" placeholder="بحث (نوع، موديل، رقم هيكل...)">
+  <button id="clear-search">✖</button>
 </div>
+
+<!-- أزرار الحالة -->
+<div class="brand-filters status-filters">
+  <button class="active" data-status="all">الكل</button>
+  <button data-status="sold">تم البيع</button>
+</div>
+
+<!-- أزرار نوع السيارة -->
+<div id="type-filters" class="brand-filters"></div>
+
+<div class="counter" id="counter"></div>
 
 <div id="cards" class="cards">
   <div class="loading">جاري تحميل البيانات...</div>
@@ -41,134 +44,122 @@ const CSV_URL =
 "https://docs.google.com/spreadsheets/d/e/2PACX-1vR2sKJaXG_woDQOQge29zkhGyyWil3njTr8dmL9CqXdqV-e3Bi9JfTfqcLpdGMVPA/pub?output=csv";
 
 let allData = [];
-let currentBrand = "الكل";
+let currentType = "الكل";
+let statusFilter = "all";
 
 const cardsDiv = document.getElementById("cards");
 const searchInput = document.getElementById("search");
-const brandFiltersDiv = document.getElementById("brand-filters");
+const clearBtn = document.getElementById("clear-search");
+const typeFiltersDiv = document.getElementById("type-filters");
+const counterDiv = document.getElementById("counter");
 
-/* تنسيق الدينار الليبي */
-function formatLYD(value) {
-  if (value === null || value === undefined || value === "") return "-";
-  let text = value.toString().split(".")[0].split("٫")[0];
-  const clean = text.replace(/[^\d]/g, "");
-  if (clean === "") return "-";
-  const number = parseInt(clean, 10);
-  if (number <= 0) return "-";
-  return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + " د.ل";
+/* ========= أدوات رقمية ========= */
+function cleanNumber(v){
+  if(!v) return null;
+  return parseInt(v.toString().split(/[.,٫]/)[0].replace(/[^\d]/g,""),10);
 }
 
-/* تنسيق الوون الكوري */
-function formatKRW(value) {
-  if (value === null || value === undefined || value === "") return "-";
-  let text = value.toString().split(".")[0].split("٫")[0];
-  const clean = text.replace(/[^\d]/g, "");
-  if (clean === "") return "-";
-  const number = parseInt(clean, 10);
-  if (number <= 0) return "-";
-  return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + " ₩";
+function formatLYD(v){
+  const n = cleanNumber(v);
+  if(!n || n<=0) return "-";
+  return n.toLocaleString("en-US")+" د.ل";
+}
+function formatKRW(v){
+  const n = cleanNumber(v);
+  if(!n || n<=0) return "-";
+  return "₩ "+n.toLocaleString("en-US");
+}
+function formatUSD(v){
+  const n = cleanNumber(v);
+  if(!n || n<=0) return "-";
+  return "$ "+n.toLocaleString("en-US");
 }
 
-/* تنسيق الدولار */
-function formatUSD(value) {
-  if (value === null || value === undefined || value === "") return "-";
-  let text = value.toString().split(".")[0].split("٫")[0];
-  const clean = text.replace(/[^\d]/g, "");
-  if (clean === "") return "-";
-  const number = parseInt(clean, 10);
-  if (number <= 0) return "-";
-  return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + " $";
+/* ========= حساب الربح ========= */
+function calculateProfit(sell,cost){
+  const s = cleanNumber(sell);
+  const c = cleanNumber(cost);
+  if(!s || !c) return {text:"-",cls:""};
+  const d = s - c;
+  const t = Math.abs(d).toLocaleString("en-US")+" د.ل";
+  if(d>0) return {text:t,cls:"profit-positive"};
+  if(d<0) return {text:"-"+t,cls:"profit-negative"};
+  return {text:"0 د.ل",cls:""};
 }
 
-/* قراءة CSV */
-Papa.parse(CSV_URL, {
-  download: true,
-  header: true,
-  skipEmptyLines: true,
-  complete: function(results) {
-    allData = results.data;
-    buildBrandFilters();
+/* ========= قراءة CSV ========= */
+Papa.parse(CSV_URL,{
+  download:true,
+  header:true,
+  skipEmptyLines:true,
+  complete:(res)=>{
+    allData = res.data;
+    buildTypeFilters();
     applyFilters();
   }
 });
 
-/* إنشاء أزرار الأنواع */
-function buildBrandFilters(){
-  const brands = [...new Set(
-    allData.map(c => (c["النوع"] || "").trim()).filter(b => b !== "")
-  )];
+/* ========= أزرار الأنواع ========= */
+function buildTypeFilters(){
+  const types = [...new Set(allData.map(c=>c["النوع"]).filter(Boolean))];
 
-  brandFiltersDiv.innerHTML =
-    `<button class="brand-btn active" data-brand="الكل">الكل</button>` +
-    brands.map(b =>
-      `<button class="brand-btn" data-brand="${b}">${b}</button>`
-    ).join("");
+  typeFiltersDiv.innerHTML =
+    `<button class="active" data-type="الكل">الكل</button>`+
+    types.map(t=>`<button data-type="${t}">${t}</button>`).join("");
 
-  document.querySelectorAll(".brand-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll(".brand-btn").forEach(b => b.classList.remove("active"));
+  typeFiltersDiv.querySelectorAll("button").forEach(btn=>{
+    btn.onclick=()=>{
+      typeFiltersDiv.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
       btn.classList.add("active");
-      currentBrand = btn.dataset.brand;
+      currentType = btn.dataset.type;
       applyFilters();
-    });
+    };
   });
 }
 
-/* البحث + فلترة النوع */
+/* ========= الفلترة ========= */
 function applyFilters(){
-  const searchText = searchInput.value.toLowerCase();
-  const selectedBrand = currentBrand.trim().toLowerCase();
+  const text = searchInput.value.toLowerCase();
 
-  const filtered = allData.filter(car => {
-    const matchesSearch =
-      Object.values(car).join(" ").toLowerCase().includes(searchText);
+  const filtered = allData.filter(car=>{
+    const matchSearch =
+      Object.values(car).join(" ").toLowerCase().includes(text);
 
-    const carBrand = (car["النوع"] || "").trim().toLowerCase();
-    const matchesBrand =
-      selectedBrand === "الكل" || carBrand === selectedBrand;
+    const matchType =
+      currentType==="الكل" || car["النوع"]===currentType;
 
-    return matchesSearch && matchesBrand;
+    const matchStatus =
+      statusFilter==="all" ||
+      (car["الحضيرة"]||"").includes("بيع");
+
+    return matchSearch && matchType && matchStatus;
   });
 
-  updateCounters(filtered);
+  counterDiv.textContent =
+    `المعروض: ${filtered.length} | الإجمالي: ${allData.length}`;
+
   render(filtered);
 }
 
-/* العدادات */
-function updateCounters(data){
-  const total = data.length;
-  const sold = data.filter(c =>
-    (c["الحضيرة"] || "").toLowerCase().includes("بيع")
-  ).length;
-
-  document.getElementById("count-total").textContent = total;
-  document.getElementById("count-sold").textContent = sold;
-  document.getElementById("count-available").textContent = total - sold;
-}
-
-/* البحث */
-searchInput.addEventListener("keyup", applyFilters);
-
-/* عرض البطاقات */
+/* ========= عرض البطاقات ========= */
 function render(data){
-  cardsDiv.innerHTML = "";
-
-  if (data.length === 0) {
-    cardsDiv.innerHTML = "<div class='loading'>لا توجد نتائج</div>";
+  cardsDiv.innerHTML="";
+  if(!data.length){
+    cardsDiv.innerHTML="<div class='loading'>لا توجد نتائج</div>";
     return;
   }
 
-  data.forEach(car => {
-    const status = (car["الحضيرة"] || "غير محدد").trim();
+  data.forEach(car=>{
+    const profit = calculateProfit(car["سعر البيع"],car["التكلفة النهائية"]);
 
-    const card = document.createElement("div");
-    card.className = "card";
+    const card=document.createElement("div");
+    card.className="card";
 
-    card.innerHTML = `
+    card.innerHTML=`
       <div class="card-header">
-        <h3>${car["النوع"] || ""} - ${car["الموديل"] || ""}</h3>
-        <div class="vin">رقم الهيكل: ${car["رقم الهيكل"] || "-"}</div>
-        <span class="status-badge status-${status}">${status}</span>
+        <h3>${car["النوع"]||""} - ${car["الموديل"]||""}</h3>
+        <div>رقم الهيكل: ${car["رقم الهيكل"]||"-"}</div>
+        <div>الحالة: ${car["الحضيرة"]||"-"}</div>
       </div>
 
       <div class="card-cost">
@@ -176,33 +167,45 @@ function render(data){
       </div>
 
       <div class="details">
-        ${Object.keys(car).map(k => `
-          <div class="detail-row">
-            <span class="label">${k}</span>
-            <span class="value">
-              ${
-                k === "سعر الشراء - وون"
-                  ? formatKRW(car[k])
-                  : k === "تكلفة الشحن - دولار"
-                    ? formatUSD(car[k])
-                    : (
-                        k.includes("سعر") || k.includes("تكلفة") ||
-                        k.includes("مصاريف") || k.includes("عمولة") ||
-                        k.includes("ربح")
-                      ? formatLYD(car[k])
-                      : car[k]
-                      )
-              }
-            </span>
-          </div>
-        `).join("")}
+        ${Object.keys(car).map(k=>{
+          let v=car[k],cls="";
+          if(k==="سعر الشراء - وون") v=formatKRW(v);
+          else if(k==="تكلفة الشحن - دولار") v=formatUSD(v);
+          else if(k==="الربح"){v=profit.text;cls=profit.cls;}
+          else if(k.includes("سعر")||k.includes("تكلفة")||k.includes("مصاريف")||k.includes("عمولة"))
+            v=formatLYD(v);
+
+          return `<div class="detail-row ${cls}">
+            <span>${k}</span><span>${v||"-"}</span></div>`;
+        }).join("")}
       </div>
     `;
-
-    card.onclick = () => card.classList.toggle("open");
+    card.onclick=()=>card.classList.toggle("open");
     cardsDiv.appendChild(card);
   });
 }
+
+/* ========= الأحداث ========= */
+searchInput.onkeyup=()=>{
+  clearBtn.style.display=searchInput.value?"block":"none";
+  applyFilters();
+};
+clearBtn.onclick=()=>{
+  searchInput.value="";
+  clearBtn.style.display="none";
+  applyFilters();
+};
+
+/* أزرار الحالة */
+document.querySelectorAll('.status-filters button').forEach(btn=>{
+  btn.onclick=()=>{
+    document.querySelectorAll('.status-filters button')
+      .forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    statusFilter = btn.dataset.status;
+    applyFilters();
+  };
+});
 </script>
 
 </body>
