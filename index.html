@@ -50,15 +50,34 @@ const brandFiltersDiv = document.getElementById("brand-filters");
 /* تنسيق الدينار الليبي */
 function formatLYD(value) {
   if (value === null || value === undefined || value === "") return "-";
-
   let text = value.toString().split(".")[0].split("٫")[0];
   const clean = text.replace(/[^\d]/g, "");
   if (clean === "") return "-";
-
   const number = parseInt(clean, 10);
   if (number <= 0) return "-";
-
   return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + " د.ل";
+}
+
+/* تنسيق الوون الكوري */
+function formatKRW(value) {
+  if (value === null || value === undefined || value === "") return "-";
+  let text = value.toString().split(".")[0].split("٫")[0];
+  const clean = text.replace(/[^\d]/g, "");
+  if (clean === "") return "-";
+  const number = parseInt(clean, 10);
+  if (number <= 0) return "-";
+  return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + " ₩";
+}
+
+/* تنسيق الدولار */
+function formatUSD(value) {
+  if (value === null || value === undefined || value === "") return "-";
+  let text = value.toString().split(".")[0].split("٫")[0];
+  const clean = text.replace(/[^\d]/g, "");
+  if (clean === "") return "-";
+  const number = parseInt(clean, 10);
+  if (number <= 0) return "-";
+  return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + " $";
 }
 
 /* قراءة CSV */
@@ -76,9 +95,7 @@ Papa.parse(CSV_URL, {
 /* إنشاء أزرار الأنواع */
 function buildBrandFilters(){
   const brands = [...new Set(
-    allData
-      .map(c => (c["النوع"] || "").trim())
-      .filter(b => b !== "")
+    allData.map(c => (c["النوع"] || "").trim()).filter(b => b !== "")
   )];
 
   brandFiltersDiv.innerHTML =
@@ -89,9 +106,7 @@ function buildBrandFilters(){
 
   document.querySelectorAll(".brand-btn").forEach(btn => {
     btn.addEventListener("click", () => {
-      document.querySelectorAll(".brand-btn")
-        .forEach(b => b.classList.remove("active"));
-
+      document.querySelectorAll(".brand-btn").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
       currentBrand = btn.dataset.brand;
       applyFilters();
@@ -99,7 +114,7 @@ function buildBrandFilters(){
   });
 }
 
-/* البحث + فلترة النوع (مُصلحة لهوندا) */
+/* البحث + فلترة النوع */
 function applyFilters(){
   const searchText = searchInput.value.toLowerCase();
   const selectedBrand = currentBrand.trim().toLowerCase();
@@ -109,7 +124,6 @@ function applyFilters(){
       Object.values(car).join(" ").toLowerCase().includes(searchText);
 
     const carBrand = (car["النوع"] || "").trim().toLowerCase();
-
     const matchesBrand =
       selectedBrand === "الكل" || carBrand === selectedBrand;
 
@@ -167,11 +181,17 @@ function render(data){
             <span class="label">${k}</span>
             <span class="value">
               ${
-                k.includes("سعر") || k.includes("تكلفة") ||
-                k.includes("مصاريف") || k.includes("عمولة") ||
-                k.includes("ربح")
-                ? formatLYD(car[k])
-                : car[k]
+                k === "سعر الشراء - وون"
+                  ? formatKRW(car[k])
+                  : k === "تكلفة الشحن - دولار"
+                    ? formatUSD(car[k])
+                    : (
+                        k.includes("سعر") || k.includes("تكلفة") ||
+                        k.includes("مصاريف") || k.includes("عمولة") ||
+                        k.includes("ربح")
+                      ? formatLYD(car[k])
+                      : car[k]
+                      )
               }
             </span>
           </div>
