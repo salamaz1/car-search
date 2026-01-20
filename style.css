@@ -6,27 +6,28 @@ body{
   text-align:center;
 }
 
+/* الشعار */
 .logo-container img{
   width:120px;
   height:120px;
   border-radius:50%;
   object-fit:cover;
+  border:4px solid #1e338d;
 }
 
+/* البحث */
 .search-wrapper{
   position:relative;
   max-width:500px;
   margin:0 auto 15px;
 }
-
 .search-wrapper input{
   width:100%;
   padding:12px;
-  border-radius:10px;
+  border-radius:14px;
   border:1px solid #ccc;
   text-align:center;
 }
-
 #clear-search{
   position:absolute;
   left:10px;
@@ -39,59 +40,75 @@ body{
   display:none;
 }
 
+/* الأزرار */
 .brand-filters{
   margin:10px 0;
 }
-
 .brand-filters button{
   margin:5px;
-  padding:8px 16px;
-  border-radius:20px;
-  border:1px solid #667eea;
+  padding:8px 18px;
+  border-radius:22px;
+  border:1px solid #1e338d;
   background:#fff;
   cursor:pointer;
+  color:#1e338d;
+  font-weight:bold;
+  transition:0.2s ease;
 }
-
+.brand-filters button:hover{
+  background:#eef1ff;
+}
 .brand-filters button.active{
   background:#1e338d;
   color:#fff;
 }
 
+/* العداد */
 .counter{
   margin:15px 0;
   font-weight:bold;
 }
 
+/* البطاقات */
 .cards{
   display:grid;
   grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
-  gap:15px;
+  gap:16px;
 }
 
 .card{
-  background:#fff;
-  border-radius:15px;
-  box-shadow:0 5px 15px rgba(0,0,0,.1);
+  background:#ffffff;
+  border-radius:22px; /* حواف بيضاوية ناعمة */
+  box-shadow:0 6px 18px rgba(0,0,0,.12);
   cursor:pointer;
+  transition:transform .2s ease, box-shadow .2s ease;
 }
 
+.card:hover{
+  transform:translateY(-3px);
+  box-shadow:0 10px 25px rgba(0,0,0,.15);
+}
+
+/* رأس البطاقة */
 .card-header{
-  background:#293f9f;
+  background:#1e338d;
   color:#fff;
   padding:15px;
+  border-radius:22px 22px 0 0; /* توحيد الحواف */
 }
 
+/* التكلفة */
 .card-cost{
   background:#e6f4ee;
   padding:12px;
   font-weight:bold;
 }
 
+/* التفاصيل */
 .details{
   display:none;
-  padding:10px;
+  padding:12px;
 }
-
 .card.open .details{
   display:block;
 }
@@ -99,8 +116,11 @@ body{
 .detail-row{
   display:flex;
   justify-content:space-between;
-  padding:6px 0;
+  padding:7px 0;
   border-bottom:1px solid #eee;
+}
+.detail-row:last-child{
+  border-bottom:none;
 }
 
 /* الربح */
@@ -108,9 +128,14 @@ body{
   background:#e6f4ea;
   color:#1e7e34;
   font-weight:bold;
+  border-radius:8px;
+  padding:4px 6px;
 }
+
 .profit-negative{
   background:#fdecea;
   color:#c82333;
   font-weight:bold;
+  border-radius:8px;
+  padding:4px 6px;
 }
