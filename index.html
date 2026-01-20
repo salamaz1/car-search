@@ -44,7 +44,7 @@ const CSV_URL =
 "https://docs.google.com/spreadsheets/d/e/2PACX-1vR2sKJaXG_woDQOQge29zkhGyyWil3njTr8dmL9CqXdqV-e3Bi9JfTfqcLpdGMVPA/pub?output=csv";
 
 let allData = [];
-let currentType = "الكل";
+let currentType = "الكل";   // نخزنها lowercase
 let statusFilter = "all";
 
 const cardsDiv = document.getElementById("cards");
@@ -56,7 +56,10 @@ const counterDiv = document.getElementById("counter");
 /* ========= أدوات رقمية ========= */
 function cleanNumber(v){
   if(!v) return null;
-  return parseInt(v.toString().split(/[.,٫]/)[0].replace(/[^\d]/g,""),10);
+  return parseInt(
+    v.toString().split(/[.,٫]/)[0].replace(/[^\d]/g,""),
+    10
+  );
 }
 
 function formatLYD(v){
@@ -99,19 +102,33 @@ Papa.parse(CSV_URL,{
   }
 });
 
-/* ========= أزرار الأنواع ========= */
+/* ========= أزرار الأنواع (توحيد BMW / bmw / Bmw) ========= */
 function buildTypeFilters(){
-  const types = [...new Set(allData.map(c=>c["النوع"]).filter(Boolean))];
+  const map = {}; // { bmw: "BMW", toyota: "TOYOTA" }
+
+  allData.forEach(car=>{
+    const raw = (car["النوع"] || "").trim();
+    if(!raw) return;
+
+    const key = raw.toLowerCase();
+    if(!map[key]){
+      map[key] = raw.toUpperCase();
+    }
+  });
+
+  const keys = Object.keys(map).sort();
 
   typeFiltersDiv.innerHTML =
-    `<button class="active" data-type="الكل">الكل</button>`+
-    types.map(t=>`<button data-type="${t}">${t}</button>`).join("");
+    `<button class="active" data-type="الكل">الكل</button>` +
+    keys.map(k=>`<button data-type="${k}">${map[k]}</button>`).join("");
 
   typeFiltersDiv.querySelectorAll("button").forEach(btn=>{
     btn.onclick=()=>{
-      typeFiltersDiv.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
+      typeFiltersDiv.querySelectorAll("button")
+        .forEach(b=>b.classList.remove("active"));
       btn.classList.add("active");
-      currentType = btn.dataset.type;
+
+      currentType = btn.dataset.type; // lowercase
       applyFilters();
     };
   });
@@ -126,11 +143,12 @@ function applyFilters(){
       Object.values(car).join(" ").toLowerCase().includes(text);
 
     const matchType =
-      currentType==="الكل" || car["النوع"]===currentType;
+      currentType==="الكل" ||
+      (car["النوع"] || "").toLowerCase() === currentType;
 
     const matchStatus =
       statusFilter==="all" ||
-      (car["الحضيرة"]||"").includes("بيع");
+      (car["الحضيرة"] || "").includes("بيع");
 
     return matchSearch && matchType && matchStatus;
   });
@@ -150,14 +168,17 @@ function render(data){
   }
 
   data.forEach(car=>{
-    const profit = calculateProfit(car["سعر البيع"],car["التكلفة النهائية"]);
+    const profit = calculateProfit(
+      car["سعر البيع"],
+      car["التكلفة النهائية"]
+    );
 
     const card=document.createElement("div");
     card.className="card";
 
     card.innerHTML=`
       <div class="card-header">
-        <h3>${car["النوع"]||""} - ${car["الموديل"]||""}</h3>
+        <h3>${(car["النوع"]||"").toUpperCase()} - ${car["الموديل"]||""}</h3>
         <div>رقم الهيكل: ${car["رقم الهيكل"]||"-"}</div>
         <div>الحالة: ${car["الحضيرة"]||"-"}</div>
       </div>
@@ -168,18 +189,33 @@ function render(data){
 
       <div class="details">
         ${Object.keys(car).map(k=>{
-          let v=car[k],cls="";
-          if(k==="سعر الشراء - وون") v=formatKRW(v);
-          else if(k==="تكلفة الشحن - دولار") v=formatUSD(v);
-          else if(k==="الربح"){v=profit.text;cls=profit.cls;}
-          else if(k.includes("سعر")||k.includes("تكلفة")||k.includes("مصاريف")||k.includes("عمولة"))
-            v=formatLYD(v);
+          let v = car[k];
+          let cls = "";
 
-          return `<div class="detail-row ${cls}">
-            <span>${k}</span><span>${v||"-"}</span></div>`;
+          if(k==="سعر الشراء - وون") v = formatKRW(v);
+          else if(k==="تكلفة الشحن - دولار") v = formatUSD(v);
+          else if(k==="الربح"){
+            v = profit.text;
+            cls = profit.cls;
+          }
+          else if(
+            k.includes("سعر") ||
+            k.includes("تكلفة") ||
+            k.includes("مصاريف") ||
+            k.includes("عمولة")
+          ){
+            v = formatLYD(v);
+          }
+
+          return `
+            <div class="detail-row ${cls}">
+              <span>${k}</span>
+              <span>${v || "-"}</span>
+            </div>`;
         }).join("")}
       </div>
     `;
+
     card.onclick=()=>card.classList.toggle("open");
     cardsDiv.appendChild(card);
   });
@@ -187,16 +223,16 @@ function render(data){
 
 /* ========= الأحداث ========= */
 searchInput.onkeyup=()=>{
-  clearBtn.style.display=searchInput.value?"block":"none";
+  clearBtn.style.display = searchInput.value ? "block" : "none";
   applyFilters();
 };
+
 clearBtn.onclick=()=>{
   searchInput.value="";
   clearBtn.style.display="none";
   applyFilters();
 };
 
-/* أزرار الحالة */
 document.querySelectorAll('.status-filters button').forEach(btn=>{
   btn.onclick=()=>{
     document.querySelectorAll('.status-filters button')
